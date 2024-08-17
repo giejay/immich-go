@@ -265,16 +265,18 @@ func (la *LocalAssetBrowser) Browse(ctx context.Context) chan *browser.LocalAsse
 var toOldDate = time.Date(1980, 1, 1, 0, 0, 0, 0, time.UTC)
 
 func (la *LocalAssetBrowser) assetFromFile(fsys fs.FS, name string) (*browser.LocalAssetFile, error) {
+	fullPath := name
+	if fsys, ok := fsys.(fshelper.NameFS); ok {
+		fullPath = filepath.Join(fsys.Name(), name)
+	}
+
 	a := &browser.LocalAssetFile{
+		FullPath: fullPath,
 		FileName: name,
 		Title:    filepath.Base(name),
 		FSys:     fsys,
 	}
 
-	fullPath := name
-	if fsys, ok := fsys.(fshelper.NameFS); ok {
-		fullPath = filepath.Join(fsys.Name(), name)
-	}
 	a.Metadata.DateTaken = metadata.TakeTimeFromPath(fullPath)
 
 	i, err := fs.Stat(fsys, name)

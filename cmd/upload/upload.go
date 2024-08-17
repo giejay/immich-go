@@ -35,29 +35,31 @@ type UpCmd struct {
 
 	fsyss []fs.FS // pseudo file system to browse
 
-	GooglePhotos           bool             // For reading Google Photos takeout files
-	Delete                 bool             // Delete original file after import
-	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
-	ImportIntoAlbum        string           // All assets will be added to this album
-	PartnerAlbum           string           // Partner's assets will be added to this album
-	Import                 bool             // Import instead of upload
-	DeviceUUID             string           // Set a device UUID
-	Paths                  []string         // Path to explore
-	DateRange              immich.DateRange // Set capture date range
-	ImportFromAlbum        string           // Import assets from this albums
-	CreateAlbums           bool             // Create albums when exists in the source
-	KeepTrashed            bool             // Import trashed assets
-	KeepPartner            bool             // Import partner's assets
-	KeepUntitled           bool             // Keep untitled albums
-	UseFolderAsAlbumName   bool             // Use folder's name instead of metadata's title as Album name
-	DryRun                 bool             // Display actions but don't change anything
-	CreateStacks           bool             // Stack jpg/raw/burst (Default: TRUE)
-	StackJpgRaws           bool             // Stack jpg/raw (Default: TRUE)
-	StackBurst             bool             // Stack burst (Default: TRUE)
-	DiscardArchived        bool             // Don't import archived assets (Default: FALSE)
-	WhenNoDate             string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
-	ForceUploadWhenNoJSON  bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
-	BannedFiles            namematcher.List // List of banned file name patterns
+	GooglePhotos            bool             // For reading Google Photos takeout files
+	Delete                  bool             // Delete original file after import
+	CreateAlbumAfterFolder  bool             // Create albums for assets based on the parent folder or a given name
+	UseFullPathAsAlbumTitle bool             // Create albums for assets based on the full path to the asset
+	AlbumTitlePathSeparator string           // Create albums for assets based on the full path to the asset
+	ImportIntoAlbum         string           // All assets will be added to this album
+	PartnerAlbum            string           // Partner's assets will be added to this album
+	Import                  bool             // Import instead of upload
+	DeviceUUID              string           // Set a device UUID
+	Paths                   []string         // Path to explore
+	DateRange               immich.DateRange // Set capture date range
+	ImportFromAlbum         string           // Import assets from this albums
+	CreateAlbums            bool             // Create albums when exists in the source
+	KeepTrashed             bool             // Import trashed assets
+	KeepPartner             bool             // Import partner's assets
+	KeepUntitled            bool             // Keep untitled albums
+	UseFolderAsAlbumName    bool             // Use folder's name instead of metadata's title as Album name
+	DryRun                  bool             // Display actions but don't change anything
+	CreateStacks            bool             // Stack jpg/raw/burst (Default: TRUE)
+	StackJpgRaws            bool             // Stack jpg/raw (Default: TRUE)
+	StackBurst              bool             // Stack burst (Default: TRUE)
+	DiscardArchived         bool             // Don't import archived assets (Default: FALSE)
+	WhenNoDate              string           // When the date can't be determined use the FILE's date or NOW (default: FILE)
+	ForceUploadWhenNoJSON   bool             // Some takeout don't supplies all JSON. When true, files are uploaded without any additional metadata
+	BannedFiles             namematcher.List // List of banned file name patterns
 
 	BrowserConfig Configuration
 
@@ -119,6 +121,14 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		"create-album-folder",
 		" folder import only: Create albums for assets based on the parent folder",
 		myflag.BoolFlagFn(&app.CreateAlbumAfterFolder, false))
+	cmd.BoolFunc(
+		"use-full-path-album-title",
+		" folder import only: Use the full path towards the asset for determining the Album title",
+		myflag.BoolFlagFn(&app.UseFullPathAsAlbumTitle, false))
+	cmd.StringVar(&app.AlbumTitlePathSeparator,
+		"album-title-path-separator",
+		" ",
+		"When use-full-path-album-title = true, set the path separator for creating the album title")
 	cmd.BoolFunc(
 		"google-photos",
 		"Import GooglePhotos takeout zip files",
@@ -565,7 +575,7 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 			}
 			app.Jnl.Record(ctx, fileevent.UploadAddToAlbum, a, a.FileName, "album", album, "reason", "option -create-album-folder")
 			if !app.DryRun {
-				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album})
+				err := app.AddToAlbum(ctx, assetID, browser.LocalAlbum{Title: album, Path: a.FileName})
 				if err != nil {
 					app.Jnl.Record(ctx, fileevent.Error, a, a.FileName, "error", err.Error())
 				}
@@ -678,6 +688,9 @@ func (app *UpCmd) AddToAlbum(ctx context.Context, id string, album browser.Local
 	title := album.Title
 	if (app.GooglePhotos && (title == "" || app.CreateAlbumAfterFolder)) || app.UseFolderAsAlbumName {
 		title = filepath.Base(album.Path)
+	} else if !app.GooglePhotos && app.UseFullPathAsAlbumTitle {
+		// full path
+		title = strings.Replace(filepath.Dir(album.Path), "/", app.AlbumTitlePathSeparator, -1)
 	}
 
 	l, exist := app.albums[title]
