@@ -470,7 +470,7 @@ func TestUpload(t *testing.T) {
 			name: "folder and albums creation using full path",
 			args: []string{
 				"-create-album-folder",
-				"-use-full-path-album-title",
+				"-use-full-path-album-name",
 				"TEST_DATA/Takeout2",
 			},
 			expectedAssets: []string{
@@ -492,8 +492,8 @@ func TestUpload(t *testing.T) {
 			name: "folder and albums creation using full path and custom separator",
 			args: []string{
 				"-create-album-folder",
-				"-use-full-path-album-title",
-				"-album-title-path-separator= & ",
+				"-use-full-path-album-name",
+				"-album-name-path-separator= & ",
 				"TEST_DATA/Takeout2",
 			},
 			expectedAssets: []string{
