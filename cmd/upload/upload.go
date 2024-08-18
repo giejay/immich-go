@@ -37,9 +37,7 @@ type UpCmd struct {
 
 	GooglePhotos           bool             // For reading Google Photos takeout files
 	Delete                 bool             // Delete original file after import
-	CreateAlbumAfterFolder bool             // Create albums for assets based on the parent folder or a given name
-	UseFullPathAsAlbumName bool             // Create albums for assets based on the full path to the asset
-	AlbumNamePathSeparator string           // Determines how multiple (sub) folders, if any, will be joined
+	CreateAlbumAfterFolder string           // Create albums for assets based on the parent folder or a given name
 	ImportIntoAlbum        string           // All assets will be added to this album
 	PartnerAlbum           string           // Partner's assets will be added to this album
 	Import                 bool             // Import instead of upload
@@ -117,18 +115,10 @@ func newCommand(ctx context.Context, common *cmd.SharedFlags, args []string, fsO
 		"album",
 		"",
 		"All assets will be added to this album.")
-	cmd.BoolFunc(
+	cmd.StringVar(&app.CreateAlbumAfterFolder,
 		"create-album-folder",
-		" folder import only: Create albums for assets based on the parent folder",
-		myflag.BoolFlagFn(&app.CreateAlbumAfterFolder, false))
-	cmd.BoolFunc(
-		"use-full-path-album-name",
-		" folder import only: Use the full path towards the asset for determining the Album name",
-		myflag.BoolFlagFn(&app.UseFullPathAsAlbumName, false))
-	cmd.StringVar(&app.AlbumNamePathSeparator,
-		"album-name-path-separator",
-		" ",
-		" when use-full-path-album-name = true, determines how multiple (sub) folders, if any, will be joined")
+		"none",
+		" folder: Create albums for assets based on the parent folder, =path: Create albums based on the full path")
 	cmd.BoolFunc(
 		"google-photos",
 		"Import GooglePhotos takeout zip files",
@@ -564,7 +554,7 @@ func (app *UpCmd) manageAssetAlbum(ctx context.Context, assetID string, a *brows
 			}
 		}
 	} else {
-		if app.CreateAlbumAfterFolder {
+		if app.CreateAlbumAfterFolder != "none" {
 			album := path.Base(path.Dir(a.FileName))
 			if album == "" || album == "." {
 				if fsys, ok := a.FSys.(fshelper.NameFS); ok {
@@ -686,11 +676,11 @@ func (app *UpCmd) albumName(al browser.LocalAlbum) string {
 // AddToAlbum add the ID to the immich album having the same name as the local album
 func (app *UpCmd) AddToAlbum(ctx context.Context, id string, album browser.LocalAlbum) error {
 	title := album.Title
-	if (app.GooglePhotos && (title == "" || app.CreateAlbumAfterFolder)) || app.UseFolderAsAlbumName {
+	if (app.GooglePhotos && (title == "" || app.CreateAlbumAfterFolder != "none")) || app.UseFolderAsAlbumName {
 		title = filepath.Base(album.Path)
-	} else if !app.GooglePhotos && app.UseFullPathAsAlbumName {
+	} else if !app.GooglePhotos && app.CreateAlbumAfterFolder == "path" {
 		// full path
-		title = strings.Replace(filepath.Dir(album.Path), "/", app.AlbumNamePathSeparator, -1)
+		title = strings.Replace(filepath.Dir(album.Path), "/", " ", -1)
 	}
 
 	l, exist := app.albums[title]
