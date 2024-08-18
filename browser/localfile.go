@@ -28,8 +28,7 @@ import (
 
 type LocalAssetFile struct {
 	// Common fields
-	FullPath string               // The asset's path in the fsys
-	FileName string               // The name of the asset in the fsys
+	FileName string               // The asset's path in the fsys
 	Title    string               // Google Photos may a have title longer than the filename
 	Albums   []LocalAlbum         // The asset's album, if any
 	Err      error                // keep errors encountered
